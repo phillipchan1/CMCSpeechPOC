@@ -9,7 +9,7 @@ import SwiftUI
 
 import SwiftUI
 import Speech
-
+import OpenAI
 struct ContentView: View {
     @State private var transcription = ""
     @State private var isRecording = false
@@ -17,6 +17,9 @@ struct ContentView: View {
     @State var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     @State var recognitionTask: SFSpeechRecognitionTask?
     private let audioEngine = AVAudioEngine()
+    let openAI = OpenAI(apiToken: "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")
+  
+   
 
     var body: some View {
         VStack {
@@ -29,7 +32,12 @@ struct ContentView: View {
                     isRecording = false
                 } else {
                     startRecording()
+                    
+                        
+                
                     isRecording = true
+                    
+               
                 }
             }) {
                 Image(systemName: isRecording ? "mic.fill" : "mic")
@@ -40,6 +48,15 @@ struct ContentView: View {
             }
             .disabled(!speechRecognizer!.isAvailable)
         }
+    }
+    
+    func sendOpenAIRequest(query: String) async throws -> CompletionsResult {
+        let query = CompletionsQuery(model: .textDavinci_003, prompt: "Summarize this text: \(query)", temperature: 0, maxTokens: 100, topP: 1, frequencyPenalty: 0, presencePenalty: 0, stop: ["\\n"])
+        
+    
+        let result = try await openAI.completions(query: query)
+        return result
+        print(result)
     }
 
     func startRecording() {
@@ -66,7 +83,23 @@ struct ContentView: View {
             var isFinal = false
 
             if let result = result {
-                transcription = result.bestTranscription.formattedString
+                
+                var dictationTranscription =  result.bestTranscription.formattedString
+                
+                Task {
+                    do {
+                        var result = try await sendOpenAIRequest(query: dictationTranscription)
+                        transcription = result.choices[0].text
+                        print(result)
+                    } catch {
+                        print("didnt work")
+                    }
+                }
+                
+                
+    
+    
+                
                 isFinal = result.isFinal
             }
 
