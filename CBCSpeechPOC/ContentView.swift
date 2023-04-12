@@ -12,6 +12,7 @@ import Speech
 import OpenAI
 struct ContentView: View {
     @State private var transcription = ""
+    @State private var summary = ""
     @State private var isRecording = false
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     @State var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -23,13 +24,23 @@ struct ContentView: View {
 
     var body: some View {
         VStack {
-            Text(transcription)
+            Text(summary)
                 .padding()
             Button(action: {
                 if audioEngine.isRunning {
                     audioEngine.stop()
                     recognitionRequest?.endAudio()
                     isRecording = false
+                    
+                    Task {
+                        do {
+                            var result = try await sendOpenAIRequest(query: transcription)
+                            summary = result.choices[0].text
+                            print(result)
+                        } catch {
+                            print("didnt work")
+                        }
+                    }
                 } else {
                     startRecording()
                     
@@ -84,21 +95,9 @@ struct ContentView: View {
 
             if let result = result {
                 
-                var dictationTranscription =  result.bestTranscription.formattedString
+                transcription =  result.bestTranscription.formattedString
                 
-                Task {
-                    do {
-                        var result = try await sendOpenAIRequest(query: dictationTranscription)
-                        transcription = result.choices[0].text
-                        print(result)
-                    } catch {
-                        print("didnt work")
-                    }
-                }
-                
-                
-    
-    
+        
                 
                 isFinal = result.isFinal
             }
@@ -130,7 +129,7 @@ struct ContentView: View {
             print("audioEngine couldn't start because of an error.")
         }
 
-        transcription = "Say something, I'm listening!"
+        summary = "Say something, I'm listening!"
     }
 }
 
